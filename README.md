@@ -13,7 +13,7 @@ KAIST
 
 ## News
 
-- 🎉 **2026.09** FiTS has been accepted to $`\color{red}\textbf{NeurIPS}`$ as a $`\color{red}\textbf{Spotlight}`$ ($`\color{red}\textbf{0.95\%}`$, 292/30,709)!🏅
+- 🎉 **2026.09** FiTS has been accepted to $`\color{red}\mathbf{NeurIPS}`$ as a $`\color{red}\mathbf{Spotlight}`$ ($`\color{red}\mathbf{0.95\%}`$, 292/30,709)!🏅
 
 ## Overview
 
