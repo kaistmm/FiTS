@@ -11,7 +11,11 @@ KAIST
 
 </div>
 
-Official implementation of **FiTS**, accepted at **NeurIPS 2026 (Spotlight)**.
+## News
+
+- 🎉 **2026.09** FiTS is heading to $`\color{red}\textbf{NeurIPS 2026}`$ as a $`\color{red}\textbf{Spotlight}`$! One of only 292 out of 30,709 submissions ($`\color{red}\textbf{0.95\%}`$) 🎖️
+
+Official implementation of **FiTS**.
 
 FiTS learns which frequencies a spiking neuron responds to and how its response is shaped over time. It combines two modules:
 
