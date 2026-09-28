@@ -1,0 +1,25 @@
+# Google Speech Commands v0.02, 35 classes (paper Table 2: 94.48 ± 0.12 %, 0.30 M params)
+data_dir: ./data/GSC/processed  # downloaded and split here on first run
+results_dir: ./runs/gsc/fits_o1_w512
+mel_cache_dir:                  # optional: directory for cached mel tensors (.pt)
+cache_mels: true                # keep all mels in RAM (~2 GB)
+
+seed: 0
+epochs: 100
+batch_size: 128
+lr: 3.0e-3
+wd: 0.0
+dropout: 0.65
+
+neuron_type: fits
+hidden_dims: [512, 512]
+order: 1
+
+tau_m: 0.1
+tau_a: 0.5
+dt: 0.01
+f_min: 1.0
+f_max: 30.0                     # close to the CT stability limit (30.88 Hz), see README
+freq_init: log
+freq_param: ct
+freq_guard: true

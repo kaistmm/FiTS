@@ -1,0 +1,26 @@
+# SSC (paper Table 1: 78.23 ± 0.16 %, 0.35 M params)
+data_dir: ./data/SSC            # contains ssc_train.h5, ssc_valid.h5, ssc_test.h5
+results_dir: ./runs/ssc/fits_o1_w512
+
+seed: 0
+epochs: 100
+batch_size: 128
+lr: 5.5e-4
+wd: 0.0
+dropout: 0.6
+
+neuron_type: fits
+hidden_dims: [512, 512]
+order: 1
+
+tau_m: 0.04
+tau_a: 0.2
+dt: 0.004
+f_min: 1.0
+f_max: 50.0
+freq_init: log
+freq_param: ct
+freq_guard: true
+
+time_window: 250
+in_features: 140

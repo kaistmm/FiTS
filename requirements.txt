@@ -1,0 +1,16 @@
+# Install PyTorch for your CUDA version first (https://pytorch.org); the Linux
+# CUDA wheels ship Triton.  Then: pip install -r requirements.txt && pip install -e .
+torch>=2.2
+numpy>=1.22
+triton>=2.2; platform_system == "Linux"
+
+# benchmark scripts
+pyyaml>=6.0
+h5py>=3.10         # SHD / SSC
+librosa>=0.10      # GSC
+torchvision>=0.17  # sMNIST
+matplotlib>=3.7    # examples/inspect_checkpoint.py --plot
+
+# optional
+# wandb>=0.16
+# pytest>=7

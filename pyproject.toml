@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fits-snn"
+version = "1.0.0"
+description = "FiTS: Interpretable Spiking Neurons via Frequency Selectivity and Temporal Shaping (NeurIPS 2026)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Jongmin Choi" }, { name = "Joon Son Chung" }]
+dependencies = ["torch>=2.2", "numpy>=1.22"]
+
+[project.optional-dependencies]
+experiments = ["pyyaml>=6.0", "h5py>=3.10", "librosa>=0.10", "torchvision>=0.17", "matplotlib>=3.7"]
+test = ["pytest>=7"]
+
+[project.urls]
+Paper = "https://arxiv.org/abs/2605.13071"
+OpenReview = "https://openreview.net/forum?id=xukoeVXJJ9"
+
+[tool.setuptools.packages.find]
+include = ["fits*"]

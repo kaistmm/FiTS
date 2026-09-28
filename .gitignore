@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# data, outputs and logs
+data/
+runs/
+wandb/
+*.pth
+*.pt
+*.h5
