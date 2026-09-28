@@ -22,4 +22,4 @@ Paper = "https://arxiv.org/abs/2605.13071"
 OpenReview = "https://openreview.net/forum?id=xukoeVXJJ9"
 
 [tool.setuptools.packages.find]
-include = ["fits*"]
+include = ["fits*", "common*", "SHD*", "SSC*", "GSC*", "MNIST*"]

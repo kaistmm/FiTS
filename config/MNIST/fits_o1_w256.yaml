@@ -1,0 +1,24 @@
+# Sequential MNIST (paper Table A.9: 98.28 %, 0.07 M params); time unit = 1 pixel step
+data_dir: ./data/MNIST          # torchvision downloads MNIST here
+results_dir: ./runs/smnist/fits_o1_w256
+task: smnist                    # or psmnist
+
+seed: 0
+epochs: 100
+batch_size: 256
+lr: 8.0e-3
+wd: 0.0
+dropout: 0.0
+
+neuron_type: fits
+hidden_dims: [256, 256]
+order: 1
+
+tau_m: 20.0
+tau_a: 150.0
+dt: 1.0
+f_min: 0.001                    # cycles / step
+f_max: 0.1
+freq_init: linear
+freq_param: ct
+freq_guard: true

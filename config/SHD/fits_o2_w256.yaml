@@ -1,0 +1,29 @@
+# SHD*, 20 % validation hold-out (paper Table 1, "SHD*": 94.38 ± 0.12 %, 0.11 M params)
+data_dir: ./data/SHD            # contains shd_train.h5, shd_test.h5
+results_dir: ./runs/shd/fits_o2_w256
+eval_mode: valid_split
+valid_frac: 0.2
+valid_split_seed: 0
+
+seed: 0
+epochs: 100
+batch_size: 128
+lr: 4.5e-3
+wd: 0.0
+dropout: 0.3
+
+neuron_type: fits
+hidden_dims: [256, 256]
+order: 2
+
+tau_m: 0.04
+tau_a: 0.2
+dt: 0.004
+f_min: 1.0
+f_max: 50.0
+freq_init: log
+freq_param: ct
+freq_guard: true
+
+time_window: 250
+in_features: 140

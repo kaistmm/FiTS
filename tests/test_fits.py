@@ -185,7 +185,11 @@ cuda = pytest.mark.skipif(not torch.cuda.is_available(), reason="requires CUDA")
 @pytest.mark.parametrize("implicit", [True, False])
 def test_triton_matches_reference(order, implicit):
     torch.manual_seed(0)
-    kw = dict(order=order, implicit=implicit, chunk_size=16)
+    # The explicit FS update is unstable at the default 50 Hz upper end
+    # (spectral radius > 1). Compare backends within its stable range so
+    # growing roundoff does not dominate the gradient comparison.
+    kw = dict(order=order, implicit=implicit, chunk_size=16,
+              f_max=50.0 if implicit else 10.0)
     fast = FiTSNeuron(20, 64, backend="triton", **kw).cuda()
     ref = FiTSNeuron(20, 64, backend="torch", **kw).cuda()
     ref.load_state_dict(fast.state_dict())

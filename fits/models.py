@@ -88,7 +88,7 @@ class FiTSNet(nn.Module):
 
 
 def build_model(cfg, in_features: int, num_classes: int, readout: str = "sum") -> FiTSNet:
-    """Build a :class:`FiTSNet` from a config namespace or dict (see ``configs/``)."""
+    """Build a :class:`FiTSNet` from a config namespace or dict (see ``config/``)."""
     if isinstance(cfg, dict):
         cfg = SimpleNamespace(**cfg)
     g = lambda key, default: getattr(cfg, key, default)
