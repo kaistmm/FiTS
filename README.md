@@ -13,11 +13,11 @@ KAIST
 
 ## News
 
-- 🎉 **2026.09** FiTS has been accepted to $`\color{red}\text{𝗡𝗲𝘂𝗿𝗜𝗣𝗦}`$ as a $`\color{red}\text{𝗦𝗽𝗼𝘁𝗹𝗶𝗴𝗵𝘁}`$ ($`\color{red}\text{𝟬.𝟵𝟱\%}`$, 292/30,709)!🏅
+- 🎉 **2026.09** FiTS has been accepted to $`\color{red}\text{𝗡𝗲𝘂𝗿𝗜𝗣𝗦}`$ as a $`\color{red}\text{𝗦𝗽𝗼𝘁𝗹𝗶𝗴𝗵𝘁}`$ ($`\color{red}\text{𝟬.𝟵𝟱\%}`$)!🏅
 
 ## Overview
 
-Official implementation of **FiTS**. FiTS learns which frequencies a spiking neuron responds to (Frequency Selectivity, FS) and when those frequencies reach the threshold (Temporal Shaping, TS).
+Official implementation of **FiTS**. FiTS learns which temporal frequencies a spiking neuron emphasizes (Frequency Selectivity, FS) and reshapes when those frequency components contribute to pre-spike membrane voltage accumulation through group-delay modulation (Temporal Shaping, TS).
 
 ### Frequency Selectivity (FS)
 
@@ -27,7 +27,16 @@ $$
 \dot V = -\mu V + I - \eta a, \qquad \dot a = -\rho a + \gamma V.
 $$
 
-With $\kappa = \eta\gamma$, the subthreshold response $H(j\Omega) = \dfrac{\rho + j\Omega}{(\mu\rho + \kappa - \Omega^2) + j(\mu + \rho)\Omega}$ peaks at the target frequency
+With $\kappa = \eta\gamma$, the continuous-time subthreshold frequency response is
+
+$$
+H(j\Omega)
+= \frac{V(j\Omega)}{I(j\Omega)}
+= \frac{\rho + j\Omega}
+{(\mu\rho + \kappa - \Omega^2) + j(\mu + \rho)\Omega}.
+$$
+
+When $|H(j\Omega)|$ has a unique nonzero global maximizer over $\Omega > 0$, the corresponding target angular frequency and its inverse map are
 
 $$
 \Omega^\star = \sqrt{\sqrt{\kappa(2\rho^2 + 2\rho\mu + \kappa)} - \rho^2},
@@ -35,25 +44,25 @@ $$
 \kappa^\star = \rho(\rho + \mu)\left[\sqrt{1 + \frac{\bigl(1 + (\Omega^\star/\rho)^2\bigr)^2}{(1 + \mu/\rho)^2}} - 1\right].
 $$
 
-FiTS learns $f^\star = \Omega^\star / 2\pi$ for each neuron and sets $\kappa$ with the inverse map on the right, so $f^\star$ is what gets initialized, trained and read out. The dynamics are simulated with a semi-implicit Euler step $\Delta t$.
+FiTS uses $f^\star_{\mathrm{CT}} = \Omega^\star / 2\pi$ as each neuron's trainable coordinate and computes $\kappa^\star$ with the inverse map on the right. Thus, $f^\star_{\mathrm{CT}}$ is initialized, optimized and interpreted directly. The dynamics are simulated with a semi-implicit Euler step $\Delta t$.
 
 ### Temporal Shaping (TS)
 
-TS passes the FS output $V_0$ through first-order all-pass stages
+TS passes the FS output $V_0$ through an $M$-stage cascade of first-order all-pass filters
 
 $$
 A_m(z) = \frac{z^{-1} - \beta_m}{1 - \beta_m z^{-1}}, \qquad |\beta_m| < 1,
 $$
 
-which change the group delay but not the magnitude, and mixes them back with the FS pathway. For one stage,
+which preserve magnitude while modifying phase, and recursively mixes the stage outputs with the direct FS pathway. For one stage,
 
 $$
 \tilde V = (1 - \lambda_1) V_0 + \lambda_1 V_1, \qquad \lambda_1 \in [0, 1],
 $$
 
-and deeper cascades repeat this mixing stage by stage. Mixing lets the group delay move in either direction, including advances that an all-pass cascade alone cannot produce. $\tilde V$ is the pre-reset voltage; a spike subtracts $V_{\mathrm{th}}$ from the membrane voltage and leaves the adaptation and all-pass states unchanged.
+and deeper cascades repeat this mixing stage by stage. The TS-induced group-delay shift can be positive or negative, whereas a pure all-pass cascade contributes only nonnegative group delay. The final mixed output $\tilde V_M$ is the effective pre-reset voltage; a spike subtracts $V_{\mathrm{th}}$ from the membrane voltage and leaves the adaptation and all-pass states unchanged.
 
-After training, you can read out each neuron's target frequency $f^\star$ and TS group delay $\tau_{\mathrm{TS}}(f^\star)$ ([inspect a trained checkpoint](#inspect-a-trained-checkpoint)). See the [paper](https://arxiv.org/abs/2605.13071) for the derivations.
+After training, you can read out each neuron's continuous-time target frequency $f^\star_{\mathrm{CT}}$ and TS-induced group-delay shift $\Delta\tau(f^\star_{\mathrm{CT}})$ ([evaluate a trained checkpoint](#evaluation)). See the [paper](https://arxiv.org/abs/2605.13071) for the derivations.
 
 ## Installation
 
@@ -69,21 +78,9 @@ pip install -e .
 
 We used Python 3.10, PyTorch 2.5.1 and CUDA 12.1 on an RTX A5000. The installation command above uses CUDA 12.1 wheels; choose a different [PyTorch build](https://pytorch.org/get-started/locally/) if needed for your environment. FiTS uses Triton kernels on CUDA and a slower PyTorch implementation on CPU.
 
-## Quick start
+## Data
 
-Run a small FiTS network on synthetic spike inputs. No dataset is required.
-
-```bash
-python examples/quickstart.py
-```
-
-The example runs three optimization steps, then prints the first layer's learned target frequencies, realized discrete-time FS peak frequencies, TS group delays and mixing weights. It selects CUDA when available and otherwise runs on CPU.
-
-## Reproducing the paper
-
-### Prepare the data
-
-Run the commands below from the repository root. Download and decompress SHD or SSC before training; GSC and sMNIST are downloaded automatically on the first run.
+Download and decompress SHD or SSC before training. GSC and sMNIST are downloaded automatically on the first run.
 
 | Dataset | Source | `--data-dir` contains |
 |---|---|---|
@@ -92,66 +89,50 @@ Run the commands below from the repository root. Download and decompress SHD or 
 | GSC v0.02 | downloaded and split on the first run | `train/`, `valid/`, `test/` |
 | sMNIST | downloaded by torchvision | `MNIST/` (created automatically) |
 
-### Train on SHD
+## Train
 
-After placing `shd_train.h5` and `shd_test.h5` in `data/SHD/`, run:
+Run the commands from the repository root. Each command launches one training run using the architecture, neuron constants and optimization settings in its YAML file.
 
 ```bash
+# SHD
 python -m SHD.scripts.train.train_chunked \
     --config config/SHD/fits_o1_w128.yaml \
     --data-dir data/SHD
+
+# SHD with a 20% validation split
+python -m SHD.scripts.train.train_chunked \
+    --config config/SHD/fits_o2_w256.yaml \
+    --data-dir data/SHD
+
+# SSC
+python -m SSC.scripts.train.train_chunked \
+    --config config/SSC/fits_o1_w512.yaml \
+    --data-dir data/SSC
+
+# GSC
+python -m GSC.scripts.train.train_chunked \
+    --config config/GSC/fits_o1_w512.yaml \
+    --data-dir data/GSC/processed
+
+# sMNIST
+python -m MNIST.scripts.train.train_chunked \
+    --config config/MNIST/fits_o1_w256.yaml \
+    --data-dir data/MNIST
 ```
 
-This configuration trains for 100 epochs and writes to `runs/shd/fits_o1_w128/`:
+The GSC and sMNIST commands prepare their datasets automatically. The SHD and SSC commands expect the files listed in [Data](#data).
 
-- `best.pth`: selected model checkpoint, including its configuration.
-- `summary.json`: selected epoch and test accuracy (stored as a fraction).
-- `metrics.json` and `train.log`: training history.
-- `config.json`: resolved configuration for the run.
+Training options can be overridden on the command line. For example, append `--order 0` for FS only, `--neuron-type lif` for the LIF baseline, `--seed <int>` to choose a random seed, or `--results-dir <path>` to change the output directory. Use any entry point with `--help` to list all options.
 
-Change the output directory with `--results-dir`. A single run takes about 7 minutes on SHD, 24 minutes on GSC and 70 minutes on SSC on an RTX A5000.
+$M$ is the number of TS all-pass stages (`--order`); $M=0$ disables TS.
 
-### Configurations and reported results
+## Inference
 
-The remaining configurations can be run with:
-
-```bash
-python -m SHD.scripts.train.train_chunked --config config/SHD/fits_o2_w256.yaml --data-dir data/SHD
-python -m SSC.scripts.train.train_chunked --config config/SSC/fits_o1_w512.yaml --data-dir data/SSC
-python -m GSC.scripts.train.train_chunked --config config/GSC/fits_o1_w512.yaml --data-dir data/GSC/processed
-python -m MNIST.scripts.train.train_chunked --config config/MNIST/fits_o1_w256.yaml --data-dir data/MNIST
-```
-
-| Config | Evaluation protocol | $M$ | Hidden width | Paper accuracy (%) |
-|---|---|:-:|:-:|:-:|
-| [`SHD/fits_o1_w128`](config/SHD/fits_o1_w128.yaml) | SHD, best test | 1 | 128 | 95.31 ± 0.21 |
-| [`SHD/fits_o2_w256`](config/SHD/fits_o2_w256.yaml) | SHD\*, 20% validation split | 2 | 256 | 94.38 ± 0.12 |
-| [`SSC/fits_o1_w512`](config/SSC/fits_o1_w512.yaml) | SSC, validation selection | 1 | 512 | 78.23 ± 0.16 |
-| [`GSC/fits_o1_w512`](config/GSC/fits_o1_w512.yaml) | GSC, validation selection | 1 | 512 | 94.48 ± 0.12 |
-| [`MNIST/fits_o1_w256`](config/MNIST/fits_o1_w256.yaml) | sMNIST, best test | 1 | 256 | 98.28 |
-
-$M$ is the number of TS all-pass stages (`--order`); $M=0$ disables TS. Hidden width is the width of each hidden layer.
-
-**Checkpoint selection:** SHD and sMNIST report the highest test accuracy across epochs. SHD\* holds out 20% of the training set and selects the epoch by validation accuracy. SSC and GSC also select by validation accuracy and report the test accuracy of the selected checkpoint.
-
-The table contains the paper's reported results. All training configurations and the built-in training defaults use `seed: 0`. Override it with `--seed` when needed.
-
-Training options can be overridden on the command line. For example, append `--order 0` for FS only or `--neuron-type lif` for the LIF baseline. Use `python -m SHD.scripts.train.train_chunked --help` to see the available flags.
-
-### Inspect a trained checkpoint
-
-```bash
-python examples/inspect_checkpoint.py runs/shd/fits_o1_w128/best.pth \
-    --csv neurons.csv --plot target_frequencies.png
-```
-
-This prints per-layer frequency and delay statistics, exports one CSV row per neuron, and plots the learned target-frequency distributions. The readouts distinguish the learned target $f^\star$ from the realized discrete-time FS peak $f^\star_{\mathrm{DT}}$; these can differ under the default continuous-time parameterization.
-
-## Using FiTS in your own model
+A `FiTSNeuron` can be used directly as a sequence layer:
 
 ```python
 import torch
-from fits import FiTSNeuron, FrequencyGuard
+from fits import FiTSNeuron
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 layer = FiTSNeuron(
@@ -159,42 +140,63 @@ layer = FiTSNeuron(
     tau_m=0.04, tau_a=0.2, dt=0.004, f_min=1.0, f_max=50.0,
 ).to(device)
 x = (torch.rand(8, 250, 140, device=device) < 0.05).float()
-spikes, *_ = layer(x)                          # [batch, time, 256]
+with torch.no_grad():
+    spikes, *_ = layer(x)                      # [batch, time, 256]
+```
 
-optimizer = torch.optim.Adam(layer.parameters(), lr=1e-3)
-guard = FrequencyGuard(layer, optimizer)       # applied on optimizer steps
+Inputs have shape `[batch, time, in_features]`. `FiTSNeuron` includes a learned linear projection followed by the spiking dynamics. It returns spikes and the final membrane, adaptation and all-pass states; the example above keeps only the spikes.
 
+`dt` is the input time step $\Delta t$ in seconds. `f_min` and `f_max` specify the initial range of $f^\star_{\mathrm{CT}}$ in Hz, rather than bounds enforced throughout training.
+
+## Evaluation
+
+The training entry points evaluate the model during training and save the selected checkpoint according to the dataset protocol:
+
+| Configuration | Checkpoint selection |
+|---|---|
+| [`SHD/fits_o1_w128`](config/SHD/fits_o1_w128.yaml) | Highest test accuracy over training |
+| [`SHD/fits_o2_w256`](config/SHD/fits_o2_w256.yaml) | Highest validation accuracy on a fixed 20% training-set holdout |
+| [`SSC/fits_o1_w512`](config/SSC/fits_o1_w512.yaml) | Highest accuracy on the official validation split |
+| [`GSC/fits_o1_w512`](config/GSC/fits_o1_w512.yaml) | Highest accuracy on the official validation split |
+| [`MNIST/fits_o1_w256`](config/MNIST/fits_o1_w256.yaml) | Highest test accuracy over training |
+
+Each run writes the following files under the configured `results_dir`:
+
+- `best.pth`: selected checkpoint and resolved configuration.
+- `summary.json`: selected epoch and test accuracy.
+- `metrics.json` and `train.log`: training history.
+- `config.json`: resolved run configuration.
+
+Inspect the learned neuron parameters in a checkpoint with:
+
+```bash
+python examples/inspect_checkpoint.py runs/shd/fits_o1_w128/best.pth \
+    --csv neurons.csv --plot target_frequencies.png
+```
+
+The command prints per-layer statistics, exports one CSV row per neuron and plots the learned target-frequency distributions. The readouts distinguish the learned continuous-time target $f^\star_{\mathrm{CT}}$ from the realized discrete-time target $f^\star_{\mathrm{DT}}$.
+
+The same readouts are available directly from a `FiTSNeuron`:
+
+```python
 target_hz = layer.get_freq()
 realized_hz = layer.realized_freq()
 delay_s = layer.ts_group_delay()
 ```
 
-Inputs have shape `[batch, time, in_features]`. `FiTSNeuron` includes a learned linear projection followed by the spiking dynamics. It returns spikes and the final membrane, adaptation and all-pass states; the example above keeps only the spikes.
-
-`dt` is the input time step $\Delta t$ in seconds. `f_min` and `f_max` specify the initial range of $f^\star$ in Hz, rather than bounds enforced throughout training.
-
-The TS readout is the group delay of the mixed all-pass cascade $G$, evaluated at each neuron's target frequency:
+`ts_group_delay()` returns the group-delay shift induced by the mixed response $G$, evaluated at each neuron's continuous-time target frequency:
 
 $$
-\tau_{\mathrm{TS}}(f^\star)
+\Delta\tau(f^\star_{\mathrm{CT}})
 = -\Delta t\left.
 \frac{\mathrm{d}}{\mathrm{d}\omega}\arg G(e^{j\omega})
-\right|_{\omega = 2\pi f^\star\Delta t}.
+\right|_{\omega = 2\pi f^\star_{\mathrm{CT}}\Delta t}.
 $$
 
-Here $\omega$ is angular frequency in radians per sample, so the returned delay is in seconds. Negative values indicate a group-delay advance.
+Here $G$ is the TS module's mixed response relative to the direct FS pathway, and $\omega$ is angular frequency in radians per sample. The returned shift is in seconds; negative values indicate a group-delay advance.
 
-<details>
-<summary>Frequency stability during training</summary>
-
-The benchmark scripts enable `FrequencyGuard` by default. It keeps the learned $f^\star$ below a safety cap derived from the stability limit of the semi-implicit FS update. The stability limits before applying the safety margin are about 30.9 Hz for the GSC constants and 77.2 Hz for SHD/SSC.
-
-The guard runs through optimizer hooks and leaves the forward computation unchanged. To disable it in a benchmark run, pass `--freq-guard false`.
-
-</details>
 
 ## Code structure
-
 ```text
 SHD/                           # SSC/, GSC/ and MNIST/ follow the same layout
 ├── core/                      # data loading and training utilities
@@ -203,12 +205,12 @@ SHD/                           # SSC/, GSC/ and MNIST/ follow the same layout
 └── spiking_neuron/             # FiTS/LIF exports from the shared implementation
 fits/                          # shared neuron dynamics, models and Triton kernels
 common/                        # shared training loop and SHD/SSC event loading
-config/{SHD,SSC,GSC,MNIST}/      # paper experiment configurations
-examples/                      # quickstart and checkpoint inspection
+config/{SHD,SSC,GSC,MNIST}/      # provided training configurations
+examples/inspect_checkpoint.py   # checkpoint-level neuron readouts
 tests/test_fits.py              # numerical and gradient checks for the implementation
 ```
 
-The dataset layout follows the anonymous release. Shared neuron code stays in `fits/` so fixes apply consistently to every dataset. `tests/test_fits.py` checks the implementation, including agreement between Triton and PyTorch; it is not a benchmark evaluation script and is not required for training. Developers can run it with `python -m pytest tests`.
+Shared neuron code stays in `fits/` so fixes apply consistently to every dataset. `tests/test_fits.py` checks the implementation, including agreement between Triton and PyTorch. Developers can run it with `python -m pytest tests`.
 
 ## Citation
 
@@ -221,6 +223,4 @@ The dataset layout follows the anonymous release. Shared neuron code stays in `f
 }
 ```
 
-## License
-
-Apache-2.0, see [LICENSE](LICENSE). The datasets keep their own licenses.
+Licensed under [Apache-2.0](LICENSE). The datasets keep their own licenses.
