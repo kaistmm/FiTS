@@ -1,6 +1,6 @@
 <div align="center">
 
-# FiTS: Interpretable Spiking Neurons via<br>Frequency Selectivity and Temporal Shaping
+# FiTS: Interpretable Spiking Neurons<br>via Frequency Selectivity and Temporal Shaping
 
 [![arXiv](https://img.shields.io/badge/arXiv-2605.13071-b31b1b.svg)](https://arxiv.org/abs/2605.13071)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
@@ -13,16 +13,47 @@ KAIST
 
 ## News
 
-- 🎉 **2026.09** FiTS is heading to $`\color{red}\textbf{NeurIPS 2026}`$ as a $`\color{red}\textbf{Spotlight}`$! One of only 292 out of 30,709 submissions ($`\color{red}\textbf{0.95\%}`$) 🎖️
+- 🎉 **2026.09** FiTS has been accepted to NeurIPS as a $`\color{red}\textbf{Spotlight}`$ (0.95%, 292/30,709)!🏅
 
-Official implementation of **FiTS**.
+## Overview
 
-FiTS learns which frequencies a spiking neuron responds to and how its response is shaped over time. It combines two modules:
+Official implementation of **FiTS**. FiTS learns which frequencies a spiking neuron responds to (Frequency Selectivity, FS) and when those frequencies reach the threshold (Temporal Shaping, TS).
 
-- **Frequency Selectivity (FS)** learns a target frequency $f^\star$ for each neuron and maps it to the adaptation strength in closed form.
-- **Temporal Shaping (TS)** uses a learnable all-pass cascade with mixing weights to shape the timing of the membrane response before spike generation.
+### Frequency Selectivity (FS)
 
-After training, you can inspect each neuron's target frequency $f^\star$ and TS group delay $\tau_{\mathrm{TS}}(f^\star)$. See the [paper](https://arxiv.org/abs/2605.13071) for the derivations, or [inspect a trained checkpoint](#inspect-a-trained-checkpoint) to read out these quantities.
+FS uses a LIF neuron with a voltage-dependent adaptation current $a$, with $\mu = 1/\tau_m$ and $\rho = 1/\tau_a$:
+
+$$
+\dot V = -\mu V + I - \eta a, \qquad \dot a = -\rho a + \gamma V.
+$$
+
+With $\kappa = \eta\gamma$, the subthreshold response $H(j\Omega) = \dfrac{\rho + j\Omega}{(\mu\rho + \kappa - \Omega^2) + j(\mu + \rho)\Omega}$ peaks at the target frequency
+
+$$
+\Omega^\star = \sqrt{\sqrt{\kappa(2\rho^2 + 2\rho\mu + \kappa)} - \rho^2},
+\qquad
+\kappa^\star = \rho(\rho + \mu)\left[\sqrt{1 + \frac{\bigl(1 + (\Omega^\star/\rho)^2\bigr)^2}{(1 + \mu/\rho)^2}} - 1\right].
+$$
+
+FiTS learns $f^\star = \Omega^\star / 2\pi$ for each neuron and sets $\kappa$ with the inverse map on the right, so $f^\star$ is what gets initialized, trained and read out. The dynamics are simulated with a semi-implicit Euler step $\Delta t$.
+
+### Temporal Shaping (TS)
+
+TS passes the FS output $V_0$ through first-order all-pass stages
+
+$$
+A_m(z) = \frac{z^{-1} - \beta_m}{1 - \beta_m z^{-1}}, \qquad |\beta_m| < 1,
+$$
+
+which change the group delay but not the magnitude, and mixes them back with the FS pathway. For one stage,
+
+$$
+\tilde V = (1 - \lambda_1) V_0 + \lambda_1 V_1, \qquad \lambda_1 \in [0, 1],
+$$
+
+and deeper cascades repeat this mixing stage by stage. Mixing lets the group delay move in either direction, including advances that an all-pass cascade alone cannot produce. $\tilde V$ is the pre-reset voltage; a spike subtracts $V_{\mathrm{th}}$ from the membrane voltage and leaves the adaptation and all-pass states unchanged.
+
+After training, you can read out each neuron's target frequency $f^\star$ and TS group delay $\tau_{\mathrm{TS}}(f^\star)$ ([inspect a trained checkpoint](#inspect-a-trained-checkpoint)). See the [paper](https://arxiv.org/abs/2605.13071) for the derivations.
 
 ## Installation
 
@@ -156,7 +187,7 @@ Here $\omega$ is angular frequency in radians per sample, so the returned delay 
 <details>
 <summary>Frequency stability during training</summary>
 
-The benchmark scripts enable `FrequencyGuard` by default. It keeps the learned $f^\star$ below a safety cap derived from the stability limit of the semi-implicit FS update. The stability limits before applying the safety margin are about $30.9\,\mathrm{Hz}$ for the GSC constants and $77.2\,\mathrm{Hz}$ for SHD/SSC.
+The benchmark scripts enable `FrequencyGuard` by default. It keeps the learned $f^\star$ below a safety cap derived from the stability limit of the semi-implicit FS update. The stability limits before applying the safety margin are about 30.9 Hz for the GSC constants and 77.2 Hz for SHD/SSC.
 
 The guard runs through optimizer hooks and leaves the forward computation unchanged. To disable it in a benchmark run, pass `--freq-guard false`.
 
