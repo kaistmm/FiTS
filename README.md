@@ -17,7 +17,14 @@ KAIST
 
 ## Overview
 
-Official implementation of **FiTS**. FiTS learns which temporal frequencies a spiking neuron emphasizes (Frequency Selectivity, FS) and reshapes when those frequency components contribute to pre-spike membrane voltage accumulation through group-delay modulation (Temporal Shaping, TS).
+Official implementation of **FiTS**.
+
+Our spiking neuron, FiTS, consists of two modules:
+
+- **Frequency Selectivity (FS)**: learns which temporal frequencies each neuron emphasizes, through an explicit target frequency $f^\star$.
+- **Temporal Shaping (TS)**: reshapes when those frequency components contribute to pre-spike membrane voltage accumulation, through group-delay modulation.
+
+## Method
 
 ### Frequency Selectivity (FS)
 
@@ -75,8 +82,6 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 pip install -r requirements.txt
 pip install -e .
 ```
-
-We used Python 3.10, PyTorch 2.5.1 and CUDA 12.1 on an RTX A5000. The installation command above uses CUDA 12.1 wheels; choose a different [PyTorch build](https://pytorch.org/get-started/locally/) if needed for your environment. FiTS uses Triton kernels on CUDA and a slower PyTorch implementation on CPU.
 
 ## Data
 
@@ -150,20 +155,10 @@ Inputs have shape `[batch, time, in_features]`. `FiTSNeuron` includes a learned 
 
 ## Evaluation
 
-The training entry points evaluate the model during training and save the selected checkpoint according to the dataset protocol:
-
-| Configuration | Checkpoint selection |
-|---|---|
-| [`SHD/fits_o1_w128`](config/SHD/fits_o1_w128.yaml) | Highest test accuracy over training |
-| [`SHD/fits_o2_w256`](config/SHD/fits_o2_w256.yaml) | Highest validation accuracy on a fixed 20% training-set holdout |
-| [`SSC/fits_o1_w512`](config/SSC/fits_o1_w512.yaml) | Highest accuracy on the official validation split |
-| [`GSC/fits_o1_w512`](config/GSC/fits_o1_w512.yaml) | Highest accuracy on the official validation split |
-| [`MNIST/fits_o1_w256`](config/MNIST/fits_o1_w256.yaml) | Highest test accuracy over training |
-
 Each run writes the following files under the configured `results_dir`:
 
-- `best.pth`: selected checkpoint and resolved configuration.
-- `summary.json`: selected epoch and test accuracy.
+- `best.pth`: model checkpoint and resolved configuration.
+- `summary.json`: test accuracy.
 - `metrics.json` and `train.log`: training history.
 - `config.json`: resolved run configuration.
 
@@ -218,7 +213,7 @@ Shared neuron code stays in `fits/` so fixes apply consistently to every dataset
 @inproceedings{choi2026fits,
   title     = {{FiTS}: Interpretable Spiking Neurons via Frequency Selectivity and Temporal Shaping},
   author    = {Choi, Jongmin and Chung, Joon Son},
-  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  booktitle = {The Fortieth Annual Conference on Neural Information Processing Systems},
   year      = {2026}
 }
 ```
